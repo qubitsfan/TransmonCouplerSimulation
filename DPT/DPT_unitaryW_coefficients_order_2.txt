@@ -1,0 +1,5 @@
+# Coefficient of the unitary W of degenerated perturbation theory at order r=2
+# Format: <list of exponents [m_r, ..., m_{1}]> <coeff>
+0	2	-0.5
+1	1	1
+2	0	-1

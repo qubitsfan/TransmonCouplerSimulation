@@ -1,0 +1,11 @@
+# Coefficient of the effective Hamiltonian in degenerated perturbation theory at order r=4
+# Format: <list of exponents [m_{r-1}, ..., m_{1}]> <coeff>
+0	0	3	0.5
+0	1	2	-0.5
+0	2	1	-0.5
+1	0	2	-0.5
+1	1	1	1
+1	2	0	-0.5
+2	0	1	-0.5
+2	1	0	-0.5
+3	0	0	0.5

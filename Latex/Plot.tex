@@ -1,0 +1,64 @@
+\documentclass[tikz,border=0pt]{standalone}
+\usepackage[siunitx]{circuitikz}
+
+\begin{document}
+\begin{circuitikz}
+
+% top node
+\draw (1,2) node[circ]{} -- (0,2) 
+      to[C,l=$C_1$] (0,0) -- (1,0) node[circ]{};
+
+% Josephson junction in parallel
+\draw (1,2) -- (2,2)
+      to[barrier,l=$E_{J1}$] (2,0)
+      -- (1,0);
+
+% optional ground
+\draw (1,0) -- (1,-0.8) node[ground]{};
+
+% top node
+\draw (5,2) node[circ]{} -- (4,2) 
+      to[C,l=$C_c$] (4,0) -- (5,0) node[circ]{};
+
+% Josephson junction in parallel
+\draw (5,2) -- (6,2)
+      to[barrier,l=$E_{Jc1}$] (6,0)
+      -- (5,0);
+
+% Josephson junction in parallel
+\draw (6,2) -- (7,2)
+      to[barrier,l=$E_{Jc2}$] (7,0)
+      -- (6,0);
+
+% optional ground
+\draw (5,0) -- (5,-0.8) node[ground]{};
+
+% top node
+\draw (10,2) node[circ]{} -- (9,2) 
+      to[C,l=$C_2$] (9,0) -- (10,0) node[circ]{};
+
+% Josephson junction in parallel
+\draw (10,2) -- (11,2)
+      to[barrier,l=$E_{J2}$] (11,0)
+      -- (10,0);
+
+% optional ground
+\draw (10,0) -- (10,-0.8) node[ground]{};
+
+% coupling capacitor 1
+\draw (1,2) -- (1,3) 
+      to[C,l=$C_{c1}$] (5,3)
+      -- (5,2);
+
+% coupling capacitor 2
+\draw (5,2) -- (5,3)
+      to[C,l=$C_{c2}$] (10,3)
+      -- (10,2);
+
+% direct coupling
+\draw (1,2) -- (1,4)
+      to[C, l=$C_{12}$] (10,4)
+      -- (10,2);
+
+\end{circuitikz}
+\end{document}
