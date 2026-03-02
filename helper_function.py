@@ -134,7 +134,63 @@ def SortedFRFSpectrum(evals, evecs_qobj, dim_q1, dim_r, dim_q2, fidelity_thresho
 
     return sorted_evals, sorted_evecs
 
-### --- 
+### ---  For Transmon-Coupler-Transmon system Analytical expressions for energies and coupling matrix elements --- ###
+def get_analytical_matrices(dim_q1, dim_c, dim_q2, V0, V1):
+    """
+    Generate analytical expressions for energies and coupling matrix elements
+    for a Transmon-Coupler-Transmon system.
+
+    This function constructs symbolic representations of the energy levels and
+    coupling matrix elements based on the dimensions of the qubits and coupler, 
+    as well as the provided coupling matrices V0 and V1. The energies are labeled
+    according to the basis states |i_q1, n_c, i_q2>, and the coupling elements are 
+    labeled according to their corresponding bra-ket notation.
+    
+    Args:
+    dim_q1 (int): Dimension of the first qubit Hilbert space.
+    dim_c (int): Dimension of the coupler Hilbert space.
+    dim_q2 (int): Dimension of the second qubit Hilbert space.
+    V0 (array_like): Static coupling matrix elements (2D array of shape (D, D)).
+    V1 (array_like): Drive coupling matrix elements (2D array of shape (D, D)).
+    
+    Returns:
+    E_analytics (np.ndarray): Symbolic expressions for energy levels, shape (D,).
+    V0_analytics (np.ndarray): Symbolic expressions for static coupling elements, shape (D, D).
+    V1_analytics (np.ndarray): Symbolic expressions for drive coupling elements, shape (D, D).
+    
+    """
+    D = dim_q1 * dim_c * dim_q2
+
+    ## Analytics 3 levels using sympy
+    E_analytics = np.zeros(D, dtype=sy.Symbol)
+    for n1 in range(dim_q1):
+        for nc in range(dim_c):
+            for n2 in range(dim_q2):
+                n = n1 * dim_c * dim_q2 + nc * dim_q2 + n2
+                E_analytics[n] = sy.symbols(f"E_{{\\ket{{{n1}{nc}{n2}}}}}", real=True)
+
+    ## Non-zero matrix elements of static coupling V0 and drive coupling V1
+    V0_analytics = np.zeros((D, D), dtype=sy.Symbol)
+    V1_analytics = np.zeros((D, D), dtype=sy.Symbol)
+    for i1 in range(dim_q1):
+        for i2 in range(dim_q2):
+            for ic in range(dim_c):
+                for jc in range(dim_c):
+                    for j1 in range(dim_q1):
+                        for j2 in range(dim_q2):
+                            i = i1 * dim_c * dim_q2 + ic * dim_q2 + i2
+                            j = j1 * dim_c * dim_q2 + jc * dim_q2 + j2
+                            if V0[i, j] != 0:
+                                V0_analytics[i, j] = sy.symbols(
+                                    f"\\bra{{{i1}{ic}{i2}}}V_0{{\\ket{{{j1}{jc}{j2}}}}}"
+                                )
+                            if V1[i, j] != 0:
+                                V1_analytics[i, j] = sy.symbols(
+                                    f"\\bra{{{i1}{ic}{i2}}}V_1{{\\ket{{{j1}{jc}{j2}}}}}"
+                                )
+    return E_analytics, V0_analytics, V1_analytics
+
+### --- Dynamics prediction using Floquet perturbation theory --- ###
 
 def Psi_t_FloquetPerturb(rH, rW, wd, amp, resonances, E, V_posHarm, initial_state, t_list):
     """
@@ -189,4 +245,81 @@ def Psi_t_FloquetPerturb(rH, rW, wd, amp, resonances, E, V_posHarm, initial_stat
         )
     return psi_t
 
+### --- Optimize maximal fidelity with iSWAP gate with respect to time --- ###
 
+def find_optimal_time(fre, amp, order, i, f, l, E0, V1, t_guess):
+    """
+    Find optimal time that maximizes fidelity with iSWAP gate.
+
+    Parameters:
+    -----------
+    fre : float
+        Drive frequency
+    amp : float
+        Drive amplitude
+    order : int
+        Perturbation theory order
+    i, f, l : int
+        Indices of states forming the computational subspace
+    E0 : array
+        Energy eigenvalues
+    V1 : array
+        Perturbation matrix
+    fre_guess : float
+        Initial guess for drive frequency
+    t_guess : float
+        Expected gate time (used to set time window)
+
+    Returns:
+    --------
+    optimal_t : float
+        Time at which maximum fidelity occurs
+    optimal_fidelity : float
+        Maximum achieved fidelity with iSWAP gate
+    optimal_U : array (3x3)
+        Subsystem unitary at optimal time
+    """
+    tlist = np.arange(0, 1.5 * t_guess, 0.01)
+
+    # Define initial states for subsystem basis {i, f, l}
+    initial_state_a = np.zeros(len(E0))
+    initial_state_a[i] = 1
+    initial_state_b = np.zeros(len(E0))
+    initial_state_b[f] = 1
+    initial_state_c = np.zeros(len(E0))
+    initial_state_c[l] = 1
+    initial_state_list = [initial_state_a, initial_state_b, initial_state_c]
+
+    # Define ideal iSWAP gate for subsystem {i, f, l}
+    # iSWAP: |i⟩→i|f⟩, |f⟩→i|i⟩, |l⟩→|l⟩ (spectator)
+    U_ideal = np.array([[0, 1j, 0],
+                        [1j, 0, 0],
+                        [0, 0, 1]], dtype=complex)
+
+    # Storage for time-evolved unitaries
+    lU = np.zeros((len(tlist), 3, 3), dtype=complex)
+
+    # Evolve each basis state and construct unitary matrix
+    for j, initial_state in enumerate(initial_state_list):
+        psi_t = Psi_t_FloquetPerturb(
+            order, 0, fre, amp,
+            {i: 1, f: 0, l: 2},
+            E0, V1, initial_state, tlist,
+        )
+        # Extract subsystem components at each time
+        # psi_t[k, :] is the evolved state at time tlist[k]
+        lU[:, 0, j] = psi_t[i, :]  # Project onto state i
+        lU[:, 1, j] = psi_t[f, :]  # Project onto state f
+        lU[:, 2, j] = psi_t[l, :]  # Project onto state l
+
+    # Compute gate fidelity at each time: F = |Tr(U_ideal† U(t))|² / 3^2
+    fidelities = np.zeros(len(tlist))
+    for k in range(len(tlist)):
+        trace_overlap = np.trace(U_ideal.conj().T @ lU[k])
+        fidelities[k] = np.abs(trace_overlap)**2 / 3**2
+
+    max_fidelity = np.max(fidelities)
+    t_max = tlist[np.argmax(fidelities)]
+    U_max = lU[np.argmax(fidelities)]
+
+    return t_max, max_fidelity, U_max
