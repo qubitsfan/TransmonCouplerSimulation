@@ -6,7 +6,7 @@ from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 from Floquet_perturbation_theory import *
 
-### ---
+### --- For Transmon-Coupler-Transmon system Substitution of phase and charge operators into creation and annihilation operators --- ###
 
 def SecondQuantizedForm(Hamiltonian):
   """
