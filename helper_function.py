@@ -1,7 +1,51 @@
 import numpy as np
 import qutip as qt
+import sympy as sp
 from sympy.physics.quantum import Dagger
+from sympy.physics.quantum.boson import BosonOp
+from sympy.physics.quantum.operatorordering import normal_ordered_form
 from Floquet_perturbation_theory import *
+
+### ---
+
+def SecondQuantizedForm(Hamiltonian):
+  """
+  Substitute phase and charge operators in terms of creation and annihilation operator and expand the resulting expression
+  """
+  EJSigma = sp.symbols("E_{J\\Sigma}")
+  n1, n2, nc = sp.symbols("n_1, n_2, n_c")
+  phi1, phi2, phic = sp.symbols("\\phi_1, \\phi_2, \\phi_c")
+  a1 = BosonOp("a_1")
+  ad1 = Dagger(a1)
+  a2 = BosonOp("a_2")
+  ad2 = Dagger(a2)
+  ac = BosonOp("a_c")
+  adc = Dagger(ac)
+  EC1, EC2, ECc = sp.symbols("E_{C1}, E_{C2}, E_{Cc}")
+  EJ1, EJ2, EJc = sp.symbols("E_{J1}, E_{J2}, E_{Jc}")
+
+
+  Hamiltonian_substituted = Hamiltonian.subs(
+      {
+        phi1: (2 * EC1 / EJ1) ** sp.Rational(1, 4) * (a1 + ad1),
+        n1: sp.I * (EJ1 / (32 * EC1)) ** sp.Rational(1, 4) * (ad1 - a1),
+        phi2: (2 * EC2 / EJ2) ** sp.Rational(1, 4) * (a2 + ad2),
+        n2: sp.I * (EJ2 / (32 * EC2)) ** sp.Rational(1, 4) * (ad2 - a2),
+        phic: (2 * ECc / EJSigma) ** sp.Rational(1, 4) * (ac + adc),
+        nc: sp.I * (EJSigma / (32 * ECc)) ** sp.Rational(1, 4) * (adc - ac),
+      }
+  )
+
+  #expand higher power terms
+  Hamiltonian_substituted = Hamiltonian_substituted.expand()
+  #put into normal ordering
+  Hamiltonian_substituted = normal_ordered_form(Hamiltonian_substituted, independent=True)
+  #combine and collect like terms
+  Hamiltonian_substituted = sp.powdenest(Hamiltonian_substituted, force=True)
+  Hamiltonian_substituted = sp.powsimp(Hamiltonian_substituted, force=True)
+
+  return Hamiltonian_substituted
+
 
 ### --- For Transmoon-Coupler-Transmon system Simplified Hamiltonian --- ###
 
